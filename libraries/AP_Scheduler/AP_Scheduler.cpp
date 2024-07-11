@@ -31,6 +31,7 @@
 #include <AP_InternalError/AP_InternalError.h>
 #include <AP_Common/ExpandingString.h>
 #include <AP_HAL/SIMState.h>
+#include "esp_attr.h"
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <SITL/SITL.h>
@@ -333,7 +334,7 @@ float AP_Scheduler::load_average()
     return constrain_float(used_time / (float)loop_us, 0, 1);
 }
 
-void AP_Scheduler::loop()
+void IRAM_ATTR AP_Scheduler::loop()
 {
     // wait for an INS sample
     hal.util->persistent_data.scheduler_task = -3;
@@ -417,17 +418,84 @@ void AP_Scheduler::loop()
 #endif
 }
 
+// void AP_Scheduler::scheduler_table_debug(void)
+// {
+//     uint8_t vehicle_tasks_offset = 0;
+//     uint8_t common_tasks_offset = 0;
+
+//     for (uint8_t i=0; i<_num_tasks; i++) {
+//         // determine which of the common task / vehicle task to run
+//         bool run_vehicle_task = false;
+//         if (vehicle_tasks_offset < _num_vehicle_tasks &&
+//             common_tasks_offset < _num_common_tasks) {
+//             // still have entries on both lists; compare the
+//             // priorities.  In case of a tie the vehicle-specific
+//             // entry wins.
+//             const Task &vehicle_task = _vehicle_tasks[vehicle_tasks_offset];
+//             const Task &common_task = _common_tasks[common_tasks_offset];
+//             if (vehicle_task.priority <= common_task.priority) {
+//                 run_vehicle_task = true;
+//             }
+//         } else if (vehicle_tasks_offset < _num_vehicle_tasks) {
+//             // out of common tasks to run
+//             run_vehicle_task = true;
+//         } else if (common_tasks_offset < _num_common_tasks) {
+//             // out of vehicle tasks to run
+//             run_vehicle_task = false;
+//         } else {
+//             // this is an error; the outside loop should have terminated
+//             INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+//             break;
+//         }
+
+//         const AP_Scheduler::Task &task = run_vehicle_task ? _vehicle_tasks[vehicle_tasks_offset] : _common_tasks[common_tasks_offset];
+//         if (run_vehicle_task) {
+//             vehicle_tasks_offset++;
+//         } else {
+//             common_tasks_offset++;
+//         }
+
+// 	const AP::PerfInfo::TaskInfo* ti = perf_info.get_task_info(i);
+	
+// 	#if 0
+// 	debug(2, "%s %s-%-56s (%5u,%5u,%5u/%5u,%-5.1f) (%6u,%5u,%5u)\n"
+// 		"  ",
+// 		"[index-priority]",
+// 	);		
+// 	#endif
+	
+// 	debug(2, "%c task[%03u-%03u]-%-56s (%5u,%5u,%5u/%5u,%-5.1f) (%6u,%5u,%5u)\n",
+// 		run_vehicle_task ? 'V':'C',
+// 		(unsigned)i,
+// 		task.priority,
+// 		task.name,
+// 		(unsigned)ti->min_time_us,
+// 		(unsigned)ti->max_time_us,
+// 		(ti->tick_count > 0) ? (unsigned)(ti->elapsed_time_us/ti->tick_count):0,
+// 		(task.priority > MAX_FAST_TASK_PRIORITIES) ? (unsigned)task.max_time_micros:(unsigned)get_loop_period_us(),
+// 		task.rate_hz,
+// 		(unsigned)ti->tick_count,
+// 		(unsigned)ti->slip_count,
+// 		(unsigned)ti->overrun_count
+// 	);
+//     }
+    
+//     debug(2, "\n");
+// }
+
 void AP_Scheduler::update_logging()
 {
     if (debug_flags()) {
         perf_info.update_logging();
+        
+        // scheduler_table_debug();
     }
     if (_log_performance_bit != (uint32_t)-1 &&
         AP::logger().should_log(_log_performance_bit)) {
         Log_Write_Performance();
     }
     perf_info.set_loop_rate(get_loop_rate_hz());
-    perf_info.reset();
+    ////perf_info.reset();
     // dynamically update the per-task perf counter
     if (!(_options & uint8_t(Options::RECORD_TASK_INFO)) && perf_info.has_task_info()) {
         perf_info.free_task_info();
